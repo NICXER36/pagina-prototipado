@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Panel de Administración</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: 'Roboto', sans-serif;
+        display: flex;
+        height: 100vh;
+      }
+      .sidebar {
+        width: 250px;
+        background: linear-gradient(135deg, #6a11cb, #2575fc);
+        color: #fff;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .sidebar img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        margin-bottom: 10px;
+      }
+      .sidebar h2 {
+        margin: 10px 0;
+        font-size: 18px;
+      }
+      .sidebar button {
+        width: 100%;
+        margin: 10px 0;
+        padding: 10px;
+        font-size: 16px;
+        background: #fff;
+        color: #6a11cb;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .sidebar button:hover {
+        background: #ddd;
+      }
+      .content {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+      }
+      .logout {
+        margin-top: auto;
+        background: #ff4d4d;
+        color: #fff;
+      }
+      .logout:hover {
+        background: #ff1a1a;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      table th, table td {
+        border: 1px solid #ccc;
+        padding: 10px;
+        text-align: left;
+      }
+      table th {
+        background: #6a11cb;
+        color: #fff;
+      }
+      .action-buttons {
+        margin-top: 20px;
+      }
+      .action-buttons button {
+        margin-right: 10px;
+        padding: 10px 15px;
+        font-size: 14px;
+        background: #6a11cb;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+      .action-buttons button:hover {
+        background: #2575fc;
+      }
+
+      /* Centrar el formulario en la pantalla */
+      #patientFormContainer {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        padding: 20px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        border-radius: 8px;
+        z-index: 1000;
+      }
+
+      #patientFormContainer h2 {
+        margin-top: 0;
+      }
+
+      #overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      }
+
+      /* Estilo general */
+      .statistics-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      .statistics-form label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 14px;
+      }
+
+      .statistics-form input {
+        width: 60%;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+
+      .statistics-form button {
+        margin-top: 20px;
+        padding: 10px;
+        background: #6a11cb;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+      }
+
+      .statistics-form button:hover {
+        background: #2575fc;
+      }
+
+      /* Contenedor de gráficos */
+      .charts-container {
+        display: flex;
+        justify-content: space-around;
+        margin-top: 20px;
+      }
+
+      .chart {
+        text-align: center;
+      }
+
+      .circle-chart {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: conic-gradient(#ddd 0%, #ddd 100%);
+        margin: 0 auto;
+      }
+
+      /* Barra de prioridad */
+      .priority-bar {
+        margin: 20px auto;
+        width: 0%;
+        height: 20px;
+        background: linear-gradient(90deg, #ff4d4d, #ff1a1a);
+        border-radius: 10px;
+        text-align: center;
+        color: #fff;
+        font-weight: bold;
+        transition: width 0.5s ease;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <img src="https://via.placeholder.com/80" alt="Perfil" />
+      <h2>Juanito Perez</h2>
+      <button onclick="showWaitingList()">Lista de espera</button>
+      <button onclick="showPatientManagement()">Agregar o modificar paciente</button>
+      <button onclick="showAppointmentManagement()">Agendar cita</button>
+      <button>Mensajes</button>
+      <button onclick="showStatisticsReport()">Reporte estadístico</button>
+      <button>Ver mi perfil</button>
+      <button class="logout" onclick="logout()">Cerrar sesión</button>
+    </div>
+    <div class="content" id="content">
+      <h1>Bienvenido al Panel de Administración</h1>
+      <p>Selecciona una opción del menú lateral para comenzar.</p>
+    </div>
+    <script>
+      let selectedRow = null;
+      let selectedAppointmentRow = null;
+
+      function logout() {
+        localStorage.removeItem('session'); // Elimina la sesión almacenada
+        window.location.href = 'index.html'; // Redirige al login
+      }
+
+      function selectRow(row) {
+        if (selectedRow) {
+          selectedRow.style.backgroundColor = ''; // Quitar selección previa
+        }
+        selectedRow = row;
+        selectedRow.style.backgroundColor = '#f0f0f0'; // Resaltar fila seleccionada
+      }
+
+      function showPatientForm(mode) {
+        const formContainer = document.getElementById('patientFormContainer');
+        const overlay = document.getElementById('overlay');
+        const formTitle = document.getElementById('formTitle');
+        const form = document.getElementById('patientForm');
+
+        if (mode === 'add') {
+          formTitle.textContent = 'Agregar Paciente';
+          form.reset(); // Limpiar el formulario
+        } else if (mode === 'edit') {
+          if (!selectedRow) {
+            alert('Seleccione una fila para modificar.');
+            return;
+          }
+          formTitle.textContent = 'Modificar Paciente';
+
+          // Rellenar el formulario con los datos de la fila seleccionada
+          const cells = selectedRow.querySelectorAll('td');
+          document.getElementById('formCorreo').value = cells[0].textContent;
+          document.getElementById('formNombre').value = cells[1].textContent;
+          document.getElementById('formApellido').value = cells[2].textContent;
+          document.getElementById('formFechaNacimiento').value = cells[3].textContent;
+          document.getElementById('formEdad').value = cells[4].textContent;
+          document.getElementById('formRUT').value = cells[5].textContent;
+          document.getElementById('formTelefono').value = cells[6].textContent;
+          document.getElementById('formDireccion').value = cells[7].textContent;
+          document.getElementById('formCiudad').value = cells[8].textContent;
+
+          // Rellenar los datos adicionales desde los atributos data-*
+          document.getElementById('formDiagnostico').value = selectedRow.dataset.diagnostico || '';
+          document.getElementById('formProcesoKinesico').value = selectedRow.dataset.procesoKinesico || '';
+          document.getElementById('formTO').value = selectedRow.dataset.to || '';
+          document.getElementById('formIndiceIndependencia').value = selectedRow.dataset.indiceIndependencia || '';
+          document.getElementById('formEscalaAmputacion').value = selectedRow.dataset.escalaAmputacion || '';
+          document.getElementById('formPrioridad').value = selectedRow.dataset.prioridad || '';
+        }
+
+        formContainer.style.display = 'block'; // Mostrar el formulario
+        overlay.style.display = 'block'; // Mostrar el fondo oscuro
+      }
+
+      function savePatient() {
+        const formContainer = document.getElementById('patientFormContainer');
+        const overlay = document.getElementById('overlay');
+        const tbody = document.getElementById('patientTableBody');
+
+        const patientData = {
+          correo: document.getElementById('formCorreo').value,
+          nombre: document.getElementById('formNombre').value,
+          apellido: document.getElementById('formApellido').value,
+          fechaNacimiento: document.getElementById('formFechaNacimiento').value,
+          edad: document.getElementById('formEdad').value,
+          rut: document.getElementById('formRUT').value,
+          telefono: document.getElementById('formTelefono').value,
+          direccion: document.getElementById('formDireccion').value,
+          ciudad: document.getElementById('formCiudad').value,
+          diagnostico: document.getElementById('formDiagnostico').value,
+          procesoKinesico: parseFloat(document.getElementById('formProcesoKinesico').value),
+          to: parseFloat(document.getElementById('formTO').value),
+          indiceIndependencia: parseFloat(document.getElementById('formIndiceIndependencia').value),
+          escalaAmputacion: parseFloat(document.getElementById('formEscalaAmputacion').value),
+          prioridad: parseFloat(document.getElementById('formPrioridad').value),
+        };
+
+        // Validar porcentajes y prioridad
+        if (
+          isNaN(patientData.procesoKinesico) || patientData.procesoKinesico < 0 || patientData.procesoKinesico > 100 ||
+          isNaN(patientData.to) || patientData.to < 0 || patientData.to > 100 ||
+          isNaN(patientData.indiceIndependencia) || patientData.indiceIndependencia < 0 || patientData.indiceIndependencia > 100 ||
+          isNaN(patientData.escalaAmputacion) || patientData.escalaAmputacion < 0 || patientData.escalaAmputacion > 100 ||
+          isNaN(patientData.prioridad) || patientData.prioridad < 0 || patientData.prioridad > 100
+        ) {
+          alert('Los valores de porcentaje y prioridad deben estar entre 0 y 100.');
+          return;
+        }
+
+        if (formTitle.textContent === 'Agregar Paciente') {
+          // Agregar nuevo paciente
+          const row = document.createElement('tr');
+          row.setAttribute('onclick', 'selectRow(this)');
+          row.dataset.diagnostico = patientData.diagnostico;
+          row.dataset.procesoKinesico = patientData.procesoKinesico;
+          row.dataset.to = patientData.to;
+          row.dataset.indiceIndependencia = patientData.indiceIndependencia;
+          row.dataset.escalaAmputacion = patientData.escalaAmputacion;
+          row.dataset.prioridad = patientData.prioridad;
+
+          row.innerHTML = `
+            <td>${patientData.correo}</td>
+            <td>${patientData.nombre}</td>
+            <td>${patientData.apellido}</td>
+            <td>${patientData.fechaNacimiento}</td>
+            <td>${patientData.edad}</td>
+            <td>${patientData.rut}</td>
+            <td>${patientData.telefono}</td>
+            <td>${patientData.direccion}</td>
+            <td>${patientData.ciudad}</td>
+          `;
+          tbody.appendChild(row);
+          alert('Paciente agregado correctamente.');
+        } else {
+          // Modificar paciente existente
+          const cells = selectedRow.querySelectorAll('td');
+          cells[0].textContent = patientData.correo;
+          cells[1].textContent = patientData.nombre;
+          cells[2].textContent = patientData.apellido;
+          cells[3].textContent = patientData.fechaNacimiento;
+          cells[4].textContent = patientData.edad;
+          cells[5].textContent = patientData.rut;
+          cells[6].textContent = patientData.telefono;
+          cells[7].textContent = patientData.direccion;
+          cells[8].textContent = patientData.ciudad;
+          alert('Paciente modificado correctamente.');
+        }
+
+        formContainer.style.display = 'none'; // Ocultar el formulario
+        overlay.style.display = 'none'; // Ocultar el fondo oscuro
+      }
+
+      function viewPatientDetails() {
+        if (!selectedRow) {
+          alert('Seleccione una fila para ver más detalles.');
+          return;
+        }
+
+        // Obtener los datos de la fila seleccionada
+        const cells = selectedRow.querySelectorAll('td');
+        const patientDetails = {
+          correo: cells[0].textContent,
+          nombre: cells[1].textContent,
+          apellido: cells[2].textContent,
+          fechaNacimiento: cells[3].textContent,
+          edad: cells[4].textContent,
+          rut: cells[5].textContent,
+          telefono: cells[6].textContent,
+          direccion: cells[7].textContent,
+          ciudad: cells[8].textContent,
+          diagnostico: selectedRow.dataset.diagnostico || 'N/A',
+          procesoKinesico: selectedRow.dataset.procesoKinesico || 'N/A',
+          to: selectedRow.dataset.to || 'N/A',
+          indiceIndependencia: selectedRow.dataset.indiceIndependencia || 'N/A',
+          escalaAmputacion: selectedRow.dataset.escalaAmputacion || 'N/A',
+          prioridad: selectedRow.dataset.prioridad || 'N/A',
+        };
+
+        // Mostrar los detalles en un nuevo módulo
+        const content = document.getElementById('content');
+        content.innerHTML = `
+          <h1>Detalles del Paciente</h1>
+          <p><strong>Correo:</strong> ${patientDetails.correo}</p>
+          <p><strong>Nombre:</strong> ${patientDetails.nombre}</p>
+          <p><strong>Apellido:</strong> ${patientDetails.apellido}</p>
+          <p><strong>Fecha de Nacimiento:</strong> ${patientDetails.fechaNacimiento}</p>
+          <p><strong>Edad:</strong> ${patientDetails.edad}</p>
+          <p><strong>RUT:</strong> ${patientDetails.rut}</p>
+          <p><strong>Teléfono:</strong> ${patientDetails.telefono}</p>
+          <p><strong>Dirección:</strong> ${patientDetails.direccion}</p>
+          <p><strong>Ciudad:</strong> ${patientDetails.ciudad}</p>
+          <p><strong>Diagnóstico:</strong> ${patientDetails.diagnostico}</p>
+          <p><strong>Proceso Kinésico%:</strong> ${patientDetails.procesoKinesico}</p>
+          <p><strong>T.O%:</strong> ${patientDetails.to}</p>
+          <p><strong>Índice de Independencia Funcional%:</strong> ${patientDetails.indiceIndependencia}</p>
+          <p><strong>Escala Amputación y Prótesis%:</strong> ${patientDetails.escalaAmputacion}</p>
+          <p><strong>Prioridad:</strong> ${patientDetails.prioridad}</p>
+          <button onclick="showPatientManagement()">Volver</button>
+        `;
+      }
+
+      function showWaitingList() {
+        const content = document.getElementById('content');
+        content.innerHTML = `
+          <h1>Lista de Espera</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Fecha de Nacimiento</th>
+                <th>Edad</th>
+                <th>Sexo</th>
+                <th>RUT</th>
+                <th>Ciudad</th>
+                <th>Dirección</th>
+                <th>Teléfono</th>
+                <th>Tipo de Atención</th>
+                <th>Fecha Realización</th>
+                <th>Fecha Estimada</th>
+              </tr>
+            </thead>
+            <tbody id="waitingListBody">
+              <!-- Aquí se llenarán los datos dinámicamente -->
+            </tbody>
+          </table>
+          <div class="action-buttons">
+            <button onclick="showWaitingListForm('add')">Agregar</button>
+            <button onclick="deleteWaitingListEntry()">Borrar</button>
+          </div>
+        `;
+
+        // Datos de ejemplo
+        const patients = [
+          {
+            nombre: 'Juan',
+            apellido: 'Pérez',
+            fechaNacimiento: '1990-05-15',
+            edad: 35,
+            sexo: 'Masculino',
+            rut: '12345678-9',
+            ciudad: 'Santiago',
+            direccion: 'Av. Siempre Viva 123',
+            telefono: '987654321',
+            tipoAtencion: 'Consulta General',
+            fechaRealizacion: '2025-04-20',
+            fechaEstimada: '2025-05-01',
+          },
+        ];
+
+        // Llenar la tabla con los datos
+        const tbody = document.getElementById('waitingListBody');
+        tbody.innerHTML = ''; // Limpia la tabla antes de llenarla
+        patients.forEach((patient) => {
+          const row = `
+            <tr onclick="selectRow(this)">
+              <td>${patient.nombre}</td>
+              <td>${patient.apellido}</td>
+              <td>${patient.fechaNacimiento}</td>
+              <td>${patient.edad}</td>
+              <td>${patient.sexo}</td>
+              <td>${patient.rut}</td>
+              <td>${patient.ciudad}</td>
+              <td>${patient.direccion}</td>
+              <td>${patient.telefono}</td>
+              <td>${patient.tipoAtencion}</td>
+              <td>${patient.fechaRealizacion}</td>
+              <td>${patient.fechaEstimada}</td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+      }
+
+      function showPatientManagement() {
+        const content = document.getElementById('content');
+        content.innerHTML = `
+          <h1>Agregar o Modificar Paciente</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Correo</th>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>Fecha de Nacimiento</th>
+                <th>Edad</th>
+                <th>RUT</th>
+                <th>Teléfono</th>
+                <th>Dirección</th>
+                <th>Ciudad</th>
+              </tr>
+            </thead>
+            <tbody id="patientTableBody">
+              <!-- Aquí se llenarán los datos dinámicamente -->
+            </tbody>
+          </table>
+          <div class="action-buttons">
+            <button onclick="showPatientForm('add')">Agregar</button>
+            <button onclick="showPatientForm('edit')">Modificar</button>
+            <button onclick="deletePatient()">Eliminar</button>
+            <button onclick="viewPatientDetails()">Ver más</button>
+          </div>
+        `;
+
+        // Datos de ejemplo
+        const patients = [
+          {
+            correo: 'juan.perez@example.com',
+            nombre: 'Juan',
+            apellido: 'Pérez',
+            fechaNacimiento: '1990-05-15',
+            edad: 35,
+            rut: '12345678-9',
+            telefono: '987654321',
+            direccion: 'Av. Siempre Viva 123',
+            ciudad: 'Santiago',
+            diagnostico: 'Fractura de pierna',
+            procesoKinesico: 50,
+            to: 30,
+            indiceIndependencia: 70,
+            escalaAmputacion: 20,
+            prioridad: 80,
+          },
+        ];
+
+        // Llenar la tabla con los datos
+        const tbody = document.getElementById('patientTableBody');
+        tbody.innerHTML = ''; // Limpia la tabla antes de llenarla
+        patients.forEach((patient) => {
+          const row = `
+            <tr onclick="selectRow(this)">
+              <td>${patient.correo}</td>
+              <td>${patient.nombre}</td>
+              <td>${patient.apellido}</td>
+              <td>${patient.fechaNacimiento}</td>
+              <td>${patient.edad}</td>
+              <td>${patient.rut}</td>
+              <td>${patient.telefono}</td>
+              <td>${patient.direccion}</td>
+              <td>${patient.ciudad}</td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+      }
+
+      function showAppointmentManagement() {
+        const content = document.getElementById('content');
+        content.innerHTML = `
+          <h1>Agendar Citas</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Apellido</th>
+                <th>RUT</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Doctor/Profesional</th>
+                <th>Especialidad</th>
+              </tr>
+            </thead>
+            <tbody id="appointmentTableBody">
+              <!-- Aquí se llenarán los datos dinámicamente -->
+            </tbody>
+          </table>
+          <div class="action-buttons">
+            <button onclick="showAppointmentForm('add')">Agregar</button>
+            <button onclick="showAppointmentForm('edit')">Modificar</button>
+            <button onclick="deleteAppointment()">Eliminar</button>
+          </div>
+        `;
+
+        // Datos de ejemplo
+        const appointments = [
+          {
+            nombre: 'Juan',
+            apellido: 'Pérez',
+            rut: '12345678-9',
+            fecha: '2025-05-10',
+            hora: '10:00 AM',
+            doctor: 'Dr. González',
+            especialidad: 'Kinesiología',
+          },
+        ];
+
+        // Llenar la tabla con los datos
+        const tbody = document.getElementById('appointmentTableBody');
+        tbody.innerHTML = ''; // Limpia la tabla antes de llenarla
+        appointments.forEach((appointment) => {
+          const row = `
+            <tr onclick="selectAppointmentRow(this)">
+              <td>${appointment.nombre}</td>
+              <td>${appointment.apellido}</td>
+              <td>${appointment.rut}</td>
+              <td>${appointment.fecha}</td>
+              <td>${appointment.hora}</td>
+              <td>${appointment.doctor}</td>
+              <td>${appointment.especialidad}</td>
+            </tr>
+          `;
+          tbody.innerHTML += row;
+        });
+      }
+
+      function showAppointmentForm(mode) {
+        const formContainer = document.getElementById('appointmentFormContainer');
+        const overlay = document.getElementById('overlay');
+        const formTitle = document.getElementById('appointmentFormTitle');
+        const form = document.getElementById('appointmentForm');
+
+        if (mode === 'add') {
+          formTitle.textContent = 'Agregar Cita';
+          form.reset(); // Limpiar el formulario
+          selectedAppointmentRow = null; // No hay fila seleccionada
+        } else if (mode === 'edit') {
+          if (!selectedAppointmentRow) {
+            alert('Seleccione una fila para modificar.');
+            return;
+          }
+          formTitle.textContent = 'Modificar Cita';
+
+          // Rellenar el formulario con los datos de la fila seleccionada
+          const cells = selectedAppointmentRow.querySelectorAll('td');
+          document.getElementById('formNombreCita').value = cells[0].textContent;
+          document.getElementById('formApellidoCita').value = cells[1].textContent;
+          document.getElementById('formRUTCita').value = cells[2].textContent;
+          document.getElementById('formFechaCita').value = cells[3].textContent;
+          document.getElementById('formHoraCita').value = cells[4].textContent;
+          document.getElementById('formDoctorCita').value = cells[5].textContent;
+          document.getElementById('formEspecialidadCita').value = cells[6].textContent;
+        }
+
+        formContainer.style.display = 'block'; // Mostrar el formulario
+        overlay.style.display = 'block'; // Mostrar el fondo oscuro
+      }
+
+      function saveAppointment() {
+        const formContainer = document.getElementById('appointmentFormContainer');
+        const overlay = document.getElementById('overlay');
+        const tbody = document.getElementById('appointmentTableBody');
+
+        const appointmentData = {
+          nombre: document.getElementById('formNombreCita').value,
+          apellido: document.getElementById('formApellidoCita').value,
+          rut: document.getElementById('formRUTCita').value,
+          fecha: document.getElementById('formFechaCita').value,
+          hora: document.getElementById('formHoraCita').value,
+          doctor: document.getElementById('formDoctorCita').value,
+          especialidad: document.getElementById('formEspecialidadCita').value,
+        };
+
+        // Validar que todos los campos estén completos
+        if (
+          !appointmentData.nombre ||
+          !appointmentData.apellido ||
+          !appointmentData.rut ||
+          !appointmentData.fecha ||
+          !appointmentData.hora ||
+          !appointmentData.doctor ||
+          !appointmentData.especialidad
+        ) {
+          alert('Todos los campos son obligatorios.');
+          return;
+        }
+
+        if (!selectedAppointmentRow) {
+          // Agregar nueva cita
+          const row = document.createElement('tr');
+          row.setAttribute('onclick', 'selectAppointmentRow(this)');
+          row.innerHTML = `
+            <td>${appointmentData.nombre}</td>
+            <td>${appointmentData.apellido}</td>
+            <td>${appointmentData.rut}</td>
+            <td>${appointmentData.fecha}</td>
+            <td>${appointmentData.hora}</td>
+            <td>${appointmentData.doctor}</td>
+            <td>${appointmentData.especialidad}</td>
+          `;
+          tbody.appendChild(row);
+          alert('Cita agregada correctamente.');
+        } else {
+          // Modificar cita existente
+          const cells = selectedAppointmentRow.querySelectorAll('td');
+          cells[0].textContent = appointmentData.nombre;
+          cells[1].textContent = appointmentData.apellido;
+          cells[2].textContent = appointmentData.rut;
+          cells[3].textContent = appointmentData.fecha;
+          cells[4].textContent = appointmentData.hora;
+          cells[5].textContent = appointmentData.doctor;
+          cells[6].textContent = appointmentData.especialidad;
+          alert('Cita modificada correctamente.');
+        }
+
+        formContainer.style.display = 'none'; // Ocultar el formulario
+        overlay.style.display = 'none'; // Ocultar el fondo oscuro
+      }
+
+      function cancelAppointmentForm() {
+        const formContainer = document.getElementById('appointmentFormContainer');
+        const overlay = document.getElementById('overlay');
+        formContainer.style.display = 'none'; // Ocultar el formulario
+        overlay.style.display = 'none'; // Ocultar el fondo oscuro
+      }
+
+      function deleteAppointment() {
+        if (!selectedAppointmentRow) {
+          alert('Seleccione una fila para eliminar.');
+          return;
+        }
+
+        if (confirm('¿Está seguro de que desea eliminar esta cita?')) {
+          selectedAppointmentRow.remove();
+          selectedAppointmentRow = null;
+          alert('Cita eliminada correctamente.');
+        }
+      }
+
+      function selectAppointmentRow(row) {
+        if (selectedAppointmentRow) {
+          selectedAppointmentRow.style.backgroundColor = ''; // Quitar selección previa
+        }
+        selectedAppointmentRow = row;
+        selectedAppointmentRow.style.backgroundColor = '#f0f0f0'; // Resaltar fila seleccionada
+      }
+
+      function showWaitingListForm(mode) {
+        const formContainer = document.getElementById('waitingListFormContainer');
+        const overlay = document.getElementById('overlay');
+        const formTitle = document.getElementById('waitingListFormTitle');
+        const form = document.getElementById('waitingListForm');
+
+        if (mode === 'add') {
+          formTitle.textContent = 'Agregar a Lista de Espera';
+          form.reset(); // Limpiar el formulario
+          selectedRow = null; // No hay fila seleccionada
+        } else if (mode === 'edit') {
+          if (!selectedRow) {
+            alert('Seleccione una fila para modificar.');
+            return;
+          }
+          formTitle.textContent = 'Modificar Entrada de Lista de Espera';
+
+          // Rellenar el formulario con los datos de la fila seleccionada
+          const cells = selectedRow.querySelectorAll('td');
+          document.getElementById('formNombreLista').value = cells[0].textContent;
+          document.getElementById('formApellidoLista').value = cells[1].textContent;
+          document.getElementById('formFechaNacimientoLista').value = cells[2].textContent;
+          document.getElementById('formEdadLista').value = cells[3].textContent;
+          document.getElementById('formSexoLista').value = cells[4].textContent;
+          document.getElementById('formRUTLista').value = cells[5].textContent;
+          document.getElementById('formCiudadLista').value = cells[6].textContent;
+          document.getElementById('formDireccionLista').value = cells[7].textContent;
+          document.getElementById('formTelefonoLista').value = cells[8].textContent;
+          document.getElementById('formTipoAtencionLista').value = cells[9].textContent;
+          document.getElementById('formFechaRealizacionLista').value = cells[10].textContent;
+          document.getElementById('formFechaEstimadaLista').value = cells[11].textContent;
+        }
+
+        formContainer.style.display = 'block'; // Mostrar el formulario
+        overlay.style.display = 'block'; // Mostrar el fondo oscuro
+      }
+
+      function saveWaitingListEntry() {
+        const formContainer = document.getElementById('waitingListFormContainer');
+        const overlay = document.getElementById('overlay');
+        const tbody = document.getElementById('waitingListBody');
+
+        const entryData = {
+          nombre: document.getElementById('formNombreLista').value,
+          apellido: document.getElementById('formApellidoLista').value,
+          fechaNacimiento: document.getElementById('formFechaNacimientoLista').value,
+          edad: document.getElementById('formEdadLista').value,
+          sexo: document.getElementById('formSexoLista').value,
+          rut: document.getElementById('formRUTLista').value,
+          ciudad: document.getElementById('formCiudadLista').value,
+          direccion: document.getElementById('formDireccionLista').value,
+          telefono: document.getElementById('formTelefonoLista').value,
+          tipoAtencion: document.getElementById('formTipoAtencionLista').value,
+          fechaRealizacion: document.getElementById('formFechaRealizacionLista').value,
+          fechaEstimada: document.getElementById('formFechaEstimadaLista').value,
+        };
+
+        // Validar que todos los campos estén completos
+        if (
+          !entryData.nombre ||
+          !entryData.apellido ||
+          !entryData.fechaNacimiento ||
+          !entryData.edad ||
+          !entryData.sexo ||
+          !entryData.rut ||
+          !entryData.ciudad ||
+          !entryData.direccion ||
+          !entryData.telefono ||
+          !entryData.tipoAtencion ||
+          !entryData.fechaRealizacion ||
+          !entryData.fechaEstimada
+        ) {
+          alert('Todos los campos son obligatorios.');
+          return;
+        }
+
+        // Agregar nueva entrada
+        const row = document.createElement('tr');
+        row.setAttribute('onclick', 'selectRow(this)');
+        row.innerHTML = `
+          <td>${entryData.nombre}</td>
+          <td>${entryData.apellido}</td>
+          <td>${entryData.fechaNacimiento}</td>
+          <td>${entryData.edad}</td>
+          <td>${entryData.sexo}</td>
+          <td>${entryData.rut}</td>
+          <td>${entryData.ciudad}</td>
+          <td>${entryData.direccion}</td>
+          <td>${entryData.telefono}</td>
+          <td>${entryData.tipoAtencion}</td>
+          <td>${entryData.fechaRealizacion}</td>
+          <td>${entryData.fechaEstimada}</td>
+        `;
+        tbody.appendChild(row);
+        alert('Entrada agregada correctamente.');
+
+        // Ocultar el formulario modal
+        formContainer.style.display = 'none';
+        overlay.style.display = 'none';
+      }
+
+      function deleteWaitingListEntry() {
+        if (!selectedRow) {
+          alert('Seleccione una fila para eliminar.');
+          return;
+        }
+
+        if (confirm('¿Está seguro de que desea eliminar esta entrada?')) {
+          selectedRow.remove();
+          selectedRow = null;
+          alert('Entrada eliminada correctamente.');
+        }
+      }
+
+      function showStatisticsReport() {
+        const content = document.getElementById('content');
+        content.innerHTML = `
+          <h1>Reporte Estadístico</h1>
+          <form id="statisticsForm" class="statistics-form">
+            <label>Nombre del Paciente: <input type="text" id="patientName" required /></label>
+            <label>RUT: <input type="text" id="patientRUT" required /></label>
+            <h3>Proceso Terapéutico</h3>
+            <label>Kinésico (%): <input type="number" id="kinesico" min="0" max="100" required /></label>
+            <label>T.O (%): <input type="number" id="to" min="0" max="100" required /></label>
+            <label>Índice de Independencia Funcional (%): <input type="number" id="independencia" min="0" max="100" required /></label>
+            <label>Escala Amputación y Prótesis (%): <input type="number" id="amputacion" min="0" max="100" required /></label>
+            <button type="button" onclick="calculatePriority()">Calcular</button>
+          </form>
+          <div class="charts-container">
+            <div class="chart">
+              <h4>Kinésico</h4>
+              <div id="kinesicoChart" class="circle-chart"></div>
+            </div>
+            <div class="chart">
+              <h4>T.O</h4>
+              <div id="toChart" class="circle-chart"></div>
+            </div>
+            <div class="chart">
+              <h4>Índice de Independencia Funcional</h4>
+              <div id="independenciaChart" class="circle-chart"></div>
+            </div>
+            <div class="chart">
+              <h4>Escala Amputación y Prótesis</h4>
+              <div id="amputacionChart" class="circle-chart"></div>
+            </div>
+          </div>
+          <h3>Prioridad</h3>
+          <div id="priorityResult" class="priority-bar">0%</div>
+        `;
+      }
+
+      function calculatePriority() {
+        // Obtener los valores ingresados
+        const kinesico = parseFloat(document.getElementById('kinesico').value) || 0;
+        const to = parseFloat(document.getElementById('to').value) || 0;
+        const independencia = parseFloat(document.getElementById('independencia').value) || 0;
+        const amputacion = parseFloat(document.getElementById('amputacion').value) || 0;
+
+        // Validar que los valores estén entre 0 y 100
+        if (
+          kinesico < 0 || kinesico > 100 ||
+          to < 0 || to > 100 ||
+          independencia < 0 || independencia > 100 ||
+          amputacion < 0 || amputacion > 100
+        ) {
+          alert('Todos los valores deben estar entre 0 y 100.');
+          return;
+        }
+
+        // Calcular la prioridad
+        const priority = (kinesico * 0.4) + (to * 0.3) + (independencia * 0.2) + (amputacion * 0.1);
+
+        // Mostrar el resultado
+        const priorityResult = document.getElementById('priorityResult');
+        priorityResult.textContent = `${priority.toFixed(2)}%`;
+        priorityResult.style.width = `${priority}%`;
+
+        // Actualizar gráficos
+        updateChart('kinesicoChart', kinesico);
+        updateChart('toChart', to);
+        updateChart('independenciaChart', independencia);
+        updateChart('amputacionChart', amputacion);
+      }
+
+      function updateChart(chartId, value) {
+        const chart = document.getElementById(chartId);
+        chart.style.background = `conic-gradient(#6a11cb ${value}%, #ddd ${value}%)`;
+      }
+    </script>
+
+    <div id="overlay"></div>
+    <div id="patientFormContainer">
+      <h2 id="formTitle"></h2>
+      <form id="patientForm">
+        <label>Correo: <input type="email" id="formCorreo" required /></label><br />
+        <label>Nombre: <input type="text" id="formNombre" required /></label><br />
+        <label>Apellido: <input type="text" id="formApellido" required /></label><br />
+        <label>Fecha de Nacimiento: <input type="date" id="formFechaNacimiento" required /></label><br />
+        <label>Edad: <input type="number" id="formEdad" required /></label><br />
+        <label>RUT: <input type="text" id="formRUT" required /></label><br />
+        <label>Teléfono: <input type="text" id="formTelefono" required /></label><br />
+        <label>Dirección: <input type="text" id="formDireccion" required /></label><br />
+        <label>Ciudad: <input type="text" id="formCiudad" required /></label><br />
+        <label>Diagnóstico: <input type="text" id="formDiagnostico" /></label><br />
+        <label>Proceso Kinésico%: <input type="number" id="formProcesoKinesico" min="0" max="100" required /></label><br />
+        <label>T.O%: <input type="number" id="formTO" min="0" max="100" required /></label><br />
+        <label>Índice de Independencia Funcional%: <input type="number" id="formIndiceIndependencia" min="0" max="100" required /></label><br />
+        <label>Escala Amputación y Prótesis%: <input type="number" id="formEscalaAmputacion" min="0" max="100" required /></label><br />
+        <label>Prioridad: <input type="number" id="formPrioridad" min="0" max="100" required /></label><br />
+        <button type="button" onclick="savePatient()">Guardar</button>
+        <button type="button" onclick="cancelPatientForm()">Cancelar</button>
+      </form>
+    </div>
+
+    <!-- Formulario modal para Agendar Cita -->
+<div id="appointmentFormContainer" style="display: none;">
+  <h2 id="appointmentFormTitle"></h2>
+  <form id="appointmentForm">
+    <label>Nombre: <input type="text" id="formNombreCita" required /></label><br />
+    <label>Apellido: <input type="text" id="formApellidoCita" required /></label><br />
+    <label>RUT: <input type="text" id="formRUTCita" required /></label><br />
+    <label>Fecha: <input type="date" id="formFechaCita" required /></label><br />
+    <label>Hora: <input type="time" id="formHoraCita" required /></label><br />
+    <label>Doctor/Profesional: <input type="text" id="formDoctorCita" required /></label><br />
+    <label>Especialidad: <input type="text" id="formEspecialidadCita" required /></label><br />
+    <button type="button" onclick="saveAppointment()">Guardar</button>
+    <button type="button" onclick="cancelAppointmentForm()">Cancelar</button>
+  </form>
+</div>
+
+<style>
+  /* Estilo para el formulario modal */
+  #appointmentFormContainer {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    z-index: 1000;
+  }
+
+  #appointmentFormContainer h2 {
+    margin-top: 0;
+  }
+
+  #overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+  }
+</style>
+
+<!-- Formulario modal para Lista de Espera -->
+<div id="waitingListFormContainer" style="display: none;">
+  <h2 id="waitingListFormTitle"></h2>
+  <form id="waitingListForm">
+    <label>Nombre: <input type="text" id="formNombreLista" required /></label><br />
+    <label>Apellido: <input type="text" id="formApellidoLista" required /></label><br />
+    <label>Fecha de Nacimiento: <input type="date" id="formFechaNacimientoLista" required /></label><br />
+    <label>Edad: <input type="number" id="formEdadLista" required /></label><br />
+    <label>Sexo: <input type="text" id="formSexoLista" required /></label><br />
+    <label>RUT: <input type="text" id="formRUTLista" required /></label><br />
+    <label>Ciudad: <input type="text" id="formCiudadLista" required /></label><br />
+    <label>Dirección: <input type="text" id="formDireccionLista" required /></label><br />
+    <label>Teléfono: <input type="text" id="formTelefonoLista" required /></label><br />
+    <label>Tipo de Atención: <input type="text" id="formTipoAtencionLista" required /></label><br />
+    <label>Fecha Realización: <input type="date" id="formFechaRealizacionLista" required /></label><br />
+    <label>Fecha Estimada: <input type="date" id="formFechaEstimadaLista" required /></label><br />
+    <button type="button" onclick="saveWaitingListEntry()">Guardar</button>
+    <button type="button" onclick="cancelPatientForm()">Cancelar</button>
+  </form>
+</div>
+
+  </body>
+</html>
